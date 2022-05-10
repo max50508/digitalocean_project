@@ -5,7 +5,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   await app.listen(3000);
-  console.log('nihau');
+  console.log('hello');
 }
 bootstrap();
 // https://quanzhe.golfourit.com
