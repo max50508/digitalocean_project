@@ -1,0 +1,35 @@
+variables:
+  IMAGE_NAME: test-line-bot
+  CI_IMAGE: $DIGITALOCEAN_REGISTRY/secret/$CI_COMMIT_SHORT_SHA
+  DIGITALOCEAN_CONTAINER: dop_v1_faacb4d98b964e604c3c479f0706c80e18afb6da6224cb019e82970eea4a38e3
+  DIGITALOCEAN_REGISTRY: registry.digitalocean.com
+
+stages:
+  - build
+  - test
+  - publish
+  - stg-deploy
+  - prod-deploy
+
+build:
+  image: docker
+  services:
+    - docker:dind
+  stage: build
+  before_script:
+    - docker login $DIGITALOCEAN_REGISTRY -u $DIGITALOCEAN_CONTAINER -p DIGITALOCEAN_CONTAINER
+  script:
+    - echo $CI_IMAGE
+    - docker build -t $CI_IMAGE .
+    - docker push $CI_IMAGE
+
+deploy:
+  image: node:18-alpine
+  stage: stg-deploy
+  script:
+    - chmod og= $ID_RSA
+    - apk update && apk add openssh-client
+    - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "docker login $DIGITALOCEAN_REGISTRY -u $DIGITALOCEAN_CONTAINER -p DIGITALOCEAN_CONTAINER"
+    - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "docker pull $CI_IMAGE"
+    - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "docker container rm -f my-app || true"
+    - ssh -i $ID_RSA -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "docker run -d -p 3000:3000 --name my-app $CI_IMAGE"
